@@ -19,7 +19,7 @@ public class AudioSourceControl : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (!bgm.isPlaying)
+        if (!bgm.isPlaying && !ghostNormal.isPlaying)
         {
             ghostNormal.Play();
         }
