@@ -463,7 +463,7 @@ GameObject:
   - component: {fileID: 247305492}
   m_Layer: 3
   m_Name: Walls
-  m_TagString: Untagged
+  m_TagString: OldLevel
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -5216,6 +5216,7 @@ GameObject:
   - component: {fileID: 519420029}
   - component: {fileID: 519420033}
   - component: {fileID: 519420034}
+  - component: {fileID: 519420035}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -5324,6 +5325,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tilemap: {fileID: 773930905}
+--- !u!114 &519420035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6fc45f1b1c2c46eb89aa3019b35196e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  innerWallTile: {fileID: 8850948095667723708, guid: 46159fadc59f84ee286d23a94f794b8c, type: 3}
+  outerWallTile: {fileID: 7953606324102120714, guid: de0a78926fb7b48f388ba0a0a2385a73, type: 3}
+  innerCornerTile: {fileID: 6413095451832379457, guid: bc5ab6c50b828478faf27a3bf69530c1, type: 3}
+  outerCornerTile: {fileID: 3521692768166429841, guid: 750cefe4b22934656b2b63346460ec19, type: 3}
+  pelletTile: {fileID: 1966127067212051029, guid: a4e91ef120ab1496a83fc64fc6487bbc, type: 3}
+  powerPelletTile: {fileID: 8561805480321099894, guid: ebe49def1f11b4371aae60a636ac90f9, type: 3}
 --- !u!1 &572741750
 GameObject:
   m_ObjectHideFlags: 0
@@ -5532,7 +5551,7 @@ GameObject:
   - component: {fileID: 773930904}
   m_Layer: 7
   m_Name: Pellets
-  m_TagString: Untagged
+  m_TagString: OldLevel
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -8509,7 +8528,7 @@ GameObject:
   - component: {fileID: 1850212361}
   m_Layer: 0
   m_Name: Grid
-  m_TagString: Untagged
+  m_TagString: OldLevel
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
