@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/StartScene.unity
+    guid: f3f5545fa20094659b96254bf6e5385d
+  - enabled: 1
     path: Assets/Scenes/PacAstarion.unity
     guid: 2cda990e2423bbf4892e6590ba056729
   m_configObjects: {}
