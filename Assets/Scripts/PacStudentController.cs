@@ -133,8 +133,8 @@ public class PacStudentController : MonoBehaviour
 
         // Check if next position has a pellet to determine which sound to play
         Vector2 nextPos = GetNextGridPosition(direction);
-        int gridX = Mathf.RoundToInt(nextPos.x + 10.5f);
-        int gridY = Mathf.RoundToInt(-nextPos.y - 7f);
+        int gridX = Mathf.RoundToInt((nextPos.x + 10.5f) / 0.5f);
+        int gridY = Mathf.RoundToInt((-nextPos.y + 7f) / 0.5f);
         bool hasPellet = LevelGenerator.levelMap[gridY, gridX] == 5;
 
         PlayMovementSound(hasPellet);
