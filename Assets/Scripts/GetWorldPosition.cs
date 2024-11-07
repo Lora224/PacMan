@@ -11,7 +11,7 @@ public class GetWorldPosition : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        // Example grid position for the tile
+
         Vector3Int gridPosition1 = new Vector3Int(-21, 13, 0);
         Vector3Int gridPosition2 = new Vector3Int(-16, 13, 0);
         Vector3Int gridPosition3 = new Vector3Int(-16, 9, 0);
