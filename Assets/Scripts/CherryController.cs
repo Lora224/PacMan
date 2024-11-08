@@ -1,83 +1,57 @@
 using UnityEngine;
 
-
-
-
 public class CherryController : MonoBehaviour
-
-
 {
-    [SerializeField] private float moveSpeed = 3f;
-    private Vector3 targetPosition;
-    private Vector3 startPosition;
-    private float lerpTime = 0f;
-    private static float spawnTimer = 0f;
-    private static float spawnInterval = 10f;
-
+    public GameObject cherryPrefab;  
+    private float spawnInterval = 10f;  // Time interval between cherry spawns
+    private Vector2 spawnPosition;
     private void Start()
     {
-        // Set random starting position outside camera view
-        Camera mainCamera = Camera.main;
-        float height = mainCamera.orthographicSize;
-        float width = height * mainCamera.aspect;
 
-        // Randomly choose a side to spawn from
-        int side = Random.Range(0, 4);
-        switch (side)
-        {
-            case 0: // Top
-                startPosition = new Vector3(Random.Range(-width, width), height + 1, 0);
-                break;
-            case 1: // Right
-                startPosition = new Vector3(width + 1, Random.Range(-height, height), 0);
-                break;
-            case 2: // Bottom
-                startPosition = new Vector3(Random.Range(-width, width), -height - 1, 0);
-                break;
-            case 3: // Left
-                startPosition = new Vector3(-width - 1, Random.Range(-height, height), 0);
-                break;
-        }
-
-        transform.position = startPosition;
-
-        // Set target to opposite side through center
-        Vector3 center = Vector3.zero;
-        Vector3 directionToCenter = (center - startPosition).normalized;
-        targetPosition = startPosition + directionToCenter * ((width + height) * 2);
+        InvokeRepeating("SpawnCherry", spawnInterval, spawnInterval);
     }
 
-    private void Update()
+    private void SpawnCherry()
     {
-        lerpTime += Time.deltaTime * moveSpeed;
-        transform.position = Vector3.Lerp(startPosition, targetPosition, lerpTime);
+        // Get a random spawn position outside the camera view
+        spawnPosition = GetRandomOffScreenPosition();
 
-        // Destroy if outside camera view
-        Vector3 viewportPoint = Camera.main.WorldToViewportPoint(transform.position);
-        if (viewportPoint.x < -0.1f || viewportPoint.x > 1.1f ||
-            viewportPoint.y < -0.1f || viewportPoint.y > 1.1f)
-        {
-            Destroy(gameObject);
-        }
+        // Instantiate the cherry at the random position
+        GameObject cherry = Instantiate(cherryPrefab, spawnPosition, Quaternion.identity);
+
+        // Add CherryMovement component to handle movement
+        CherryMovement movement = cherry.AddComponent<CherryMovement>();
+        movement.spawnPosition = spawnPosition;
+        Vector2 center = new Vector2(-4, 0);
+        movement.SetTarget(center);  // Set the target to the center of the level
     }
 
-    public static void UpdateSpawnTimer()
+    private Vector2 GetRandomOffScreenPosition()
     {
-        spawnTimer += Time.deltaTime;
-        if (spawnTimer >= spawnInterval)
-        {
-            spawnTimer = 0f;
-            SpawnCherry();
-        }
-    }
+        Camera cam = Camera.main;
+        float camHeight = 2f * cam.orthographicSize;
+        float camWidth = camHeight * cam.aspect;
 
-    private static void SpawnCherry()
-    {
-        // This should be called from your game manager
-        GameObject cherryPrefab = Resources.Load<GameObject>("Cherry");
-        if (cherryPrefab != null)
+        // Choose a random side of the screen to spawn from (left, right, top, bottom)
+        int randomSide = Random.Range(0, 4);
+        Vector2 position = Vector2.zero;
+
+        switch (randomSide)
         {
-            Instantiate(cherryPrefab);
+            case 0:  // Left side
+                position = new Vector2(-camWidth / 2 - 1, Random.Range(-camHeight / 2, camHeight / 2));
+                break;
+            case 1:  // Right side
+                position = new Vector2(camWidth / 2 + 1, Random.Range(-camHeight / 2, camHeight / 2));
+                break;
+            case 2:  // Top side
+                position = new Vector2(Random.Range(-camWidth / 2, camWidth / 2), camHeight / 2 + 1);
+                break;
+            case 3:  // Bottom side
+                position = new Vector2(Random.Range(-camWidth / 2, camWidth / 2), -camHeight / 2 - 1);
+                break;
         }
+
+        return position;
     }
 }
