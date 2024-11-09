@@ -1,4 +1,7 @@
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using System.Collections;
 
 public class PacStudentController : MonoBehaviour
 {
@@ -15,17 +18,45 @@ public class PacStudentController : MonoBehaviour
     private string lastInput = "";
     private string currentInput = "";
     private Animator animator;
+    public int score = 0;
+    public int lives = 3;
+    public Text scoreText;
+    public Text livesText;
+    public Text gameOverText;
+    public Text highScoreText;
+    public Text timerText;
+    public GameObject collisionEffectPrefab;
+    public AudioClip powerPillSound;
+    public AudioClip wallCollisionSound;
 
+    public GameObject ghostTimerUI;
+    public float scaredDuration = 10f;
+
+    private float timer = 0f;
+    private bool isGameRunning = false;
+    private GhostController[] ghosts;
     private void Start()
     {
         audioSource = GetComponent<AudioSource>();
         animator = GetComponent<Animator>();
         targetPosition = transform.position;
         startPosition = transform.position;
+        UpdateScoreUI();
+        UpdateLivesUI();
+        ghostTimerUI.SetActive(false);
+        ghosts = FindObjectsOfType<GhostController>();
+        gameOverText.gameObject.SetActive(false);
+        HUDController hUDController = new HUDController();
+        StartCoroutine(hUDController.StartRoundCountdown());
     }
 
     private void Update()
     {
+        if (isGameRunning)
+        {
+            timer += Time.deltaTime;
+            UpdateTimerUI();
+        }
         // Get player input
         if (Input.GetKeyDown(KeyCode.W)) lastInput = "UP";
         else if (Input.GetKeyDown(KeyCode.S)) lastInput = "DOWN";
@@ -160,5 +191,212 @@ public class PacStudentController : MonoBehaviour
             audioSource.Play();
         }
     }
-}
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Wall"))
+        {
+            HandleWallCollision(other);
+        }
+        else if (other.CompareTag("Teleporter"))
+        {
+            HandleTeleportation(other);
+        }
+        else if (other.CompareTag("Pellet"))
+        {
+            HandlePelletCollision(other);
+        }
+        else if (other.CompareTag("Cherry"))
+        {
+            HandleCherryCollision(other);
+        }
+        else if (other.CompareTag("PowerPill"))
+        {
+            HandlePowerPillCollision(other);
+        }
+        else if (other.CompareTag("Ghost"))
+        {
+            HandleGhostCollision(other);
+        }
+    }
 
+
+    private void HandleWallCollision(Collider2D wall)
+    {
+        // Prevent movement and play collision effect and sound
+        Instantiate(collisionEffectPrefab, transform.position, Quaternion.identity);
+        audioSource.PlayOneShot(wallCollisionSound);
+        // Implement logic to move PacStudent back to previous position
+    }
+
+    private void HandleTeleportation(Collider2D teleporter)
+    {
+        // Move PacStudent to the other side of the level
+        Vector2 newPosition = GetOppositeTeleporterPosition(teleporter.transform.position);
+        transform.position = newPosition;
+    }
+
+    private void HandlePelletCollision(Collider2D pellet)
+    {
+        score += 10;
+        Destroy(pellet.gameObject);
+        UpdateScoreUI();
+    }
+
+    private void HandleCherryCollision(Collider2D cherry)
+    {
+        score += 100;
+        Destroy(cherry.gameObject);
+        UpdateScoreUI();
+    }
+
+    private void HandlePowerPillCollision(Collider2D powerPill)
+    {
+        Destroy(powerPill.gameObject);
+        audioSource.PlayOneShot(powerPillSound);
+        StartCoroutine(StartGhostScaredState());
+        score += 50;
+        UpdateScoreUI();
+    }
+
+    private IEnumerator StartGhostScaredState()
+    {
+        ghostTimerUI.SetActive(true);
+        float remainingTime = scaredDuration;
+
+        // Change ghosts to "Scared" state and play corresponding music
+        ChangeGhostStates("Scared");
+        // Play scared background music
+
+        while (remainingTime > 0)
+        {
+            ghostTimerUI.GetComponent<Text>().text = Mathf.CeilToInt(remainingTime).ToString();
+            yield return new WaitForSeconds(1f);
+            remainingTime--;
+
+            if (remainingTime <= 3)
+            {
+                // Change ghosts to "Recovering" state for the last 3 seconds
+                ChangeGhostStates("Recovering");
+            }
+        }
+
+        ghostTimerUI.SetActive(false);
+        ChangeGhostStates("Walking");
+        // Return to normal background music
+    }
+
+    private void HandleGhostCollision(Collider2D ghost)
+    {
+        if (ghost.GetComponent<GhostController>().IsScared)
+        {
+            // Ghost dies, transition to Dead state, play audio, and add points
+            score += 300;
+            UpdateScoreUI();
+            ghost.GetComponent<GhostController>().TransitionToDeadState();
+            StartCoroutine(RespawnGhost(ghost.gameObject, 5f));
+        }
+        else
+        {
+            // PacStudent loses a life, play death effect, and respawn
+            lives--;
+            UpdateLivesUI();
+            Instantiate(collisionEffectPrefab, transform.position, Quaternion.identity);
+            if (lives <= 0)
+            {
+                GameOver();
+            }
+            else
+            {
+                RespawnPacStudent();
+            }
+        }
+    }
+
+    private IEnumerator RespawnGhost(GameObject ghost, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        ghost.GetComponent<GhostController>().TransitionToWalkingState();
+    }
+
+    private void ChangeGhostStates(string state)
+    {
+        foreach (GhostController ghost in ghosts)
+        {
+            switch (state)
+            {
+                case "Scared":
+                    ghost.TransitionToScaredState();
+                    break;
+                case "Recovering":
+                    ghost.TransitionToRecoveringState();
+                    break;
+                case "Walking":
+                    ghost.TransitionToWalkingState();
+                    break;
+            }
+        }
+    }
+
+    private void GameOver()
+    {
+        isGameRunning = false;
+        gameOverText.gameObject.SetActive(true);
+        SaveHighScore();
+        StartCoroutine(ReturnToStartScene());
+    }
+
+    private IEnumerator ReturnToStartScene()
+    {
+        yield return new WaitForSeconds(3f);
+        SceneManager.LoadScene("StartScene");
+    }
+
+    private void UpdateScoreUI()
+    {
+        scoreText.text = "Score: " + score;
+    }
+
+    private void UpdateLivesUI()
+    {
+        livesText.text = "Lives: " + lives;
+    }
+
+    private void UpdateTimerUI()
+    {
+        int minutes = Mathf.FloorToInt(timer / 60f);
+        int seconds = Mathf.FloorToInt(timer % 60f);
+        int milliseconds = Mathf.FloorToInt((timer * 1000f) % 1000f);
+        timerText.text = string.Format("{0:00}:{1:00}:{2:00}", minutes, seconds, milliseconds);
+    }
+
+    private Vector2 GetOppositeTeleporterPosition(Vector2 currentPos)
+    {
+        // Implement logic to return the position of the opposite teleporter
+        return new Vector2(-currentPos.x, currentPos.y);
+    }
+
+    private void RespawnPacStudent()
+    {
+        transform.position = new Vector2(-9, 9);  // Top-left corner starting position
+        isGameRunning = false;
+        StartCoroutine(WaitForPlayerInput());
+    }
+
+    private IEnumerator WaitForPlayerInput()
+    {
+        yield return new WaitUntil(() => Input.anyKeyDown);
+        isGameRunning = true;
+    }
+
+    private void SaveHighScore()
+    {
+        int savedScore = PlayerPrefs.GetInt("HighScore", 0);
+        float savedTime = PlayerPrefs.GetFloat("HighScoreTime", float.MaxValue);
+
+        if (score > savedScore || (score == savedScore && timer < savedTime))
+        {
+            PlayerPrefs.SetInt("HighScore", score);
+            PlayerPrefs.SetFloat("HighScoreTime", timer);
+        }
+    }
+}
