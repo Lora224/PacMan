@@ -163,7 +163,7 @@ public class GhostController : MonoBehaviour
     private void HandleDeadMovement()
     {
         // Move directly toward the spawn area, ignoring walls and PacStudent
-        Vector2 spawnPosition = new Vector2(-4, 0); // Adjust to your spawn area center
+        Vector2 spawnPosition = new Vector2(-4, 0); 
         transform.position = Vector2.MoveTowards(transform.position, spawnPosition, moveSpeed * Time.deltaTime);
 
         if (Vector2.Distance(transform.position, spawnPosition) < 0.1f)
@@ -183,7 +183,7 @@ public class GhostController : MonoBehaviour
 
     private void HandleWalkingMovement()
     {
-        // Choose the correct behavior based on the ghost type (e.g., number)
+   
         if (gameObject.name.Contains("Ghost1"))
         {
             MoveRandomlyAwayFromPacStudent();
