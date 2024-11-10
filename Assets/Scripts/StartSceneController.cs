@@ -10,7 +10,7 @@ public class StartSceneController : MonoBehaviour
 
     public void LoadLevel2()
     {
-      SceneManager.LoadScene("DesignIterationScene"); 
+      SceneManager.LoadScene("InfiniteMap"); 
     }
 
 
