@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+
 public class GhostController : MonoBehaviour
 {
     public enum GhostState { Walking, Scared, Recovering, Dead }
@@ -13,6 +14,11 @@ public class GhostController : MonoBehaviour
     private Animator animator;
     private PacStudentController pacStudent;
     private LevelGenerator levelGenerator;
+    private AudioSource audioSource;
+
+    public AudioClip normalStateAudio;
+    public AudioClip scaredStateAudio;
+    public AudioClip deadStateAudio;
 
     private void Start()
     {
@@ -20,8 +26,17 @@ public class GhostController : MonoBehaviour
         targetPosition = transform.position;
         lastPosition = transform.position;
         animator = GetComponent<Animator>();
+        audioSource = GetComponent<AudioSource>();
         pacStudent = FindObjectOfType<PacStudentController>();
         levelGenerator = FindObjectOfType<LevelGenerator>();
+
+        // Play audio for ghosts in normal state at the start
+        if (currentState == GhostState.Walking && normalStateAudio != null)
+        {
+            audioSource.clip = normalStateAudio;
+            audioSource.loop = true;
+            audioSource.Play();
+        }
     }
 
     private void Update()
@@ -56,7 +71,115 @@ public class GhostController : MonoBehaviour
                 startPosition = targetPosition;
             }
         }
+
+        // Set the direction parameter and isMoving state in the animator
+        Vector2 direction = (targetPosition - startPosition).normalized;
+        SetAnimatorDirection(direction);
     }
+
+    private void SetAnimatorDirection(Vector2 direction)
+    {
+        if (animator != null)
+        {
+            if (direction == Vector2.up)
+                animator.SetInteger("direction", 0);
+            else if (direction == Vector2.down)
+                animator.SetInteger("direction", 1);
+            else if (direction == Vector2.left)
+                animator.SetInteger("direction", 2);
+            else if (direction == Vector2.right)
+                animator.SetInteger("direction", 3);
+
+            animator.SetBool("isMoving", isLerping);
+            //Debug.Log(isLerping);
+        }
+    }
+
+    public void TransitionToScaredState()
+    {
+        Debug.Log("Ghost In Scared State");
+        currentState = GhostState.Scared;
+        if (animator != null)
+        {
+            animator.SetTrigger("isScared");
+            animator.SetBool("inState",true);
+        }
+        if (audioSource != null && scaredStateAudio != null)
+        {
+            audioSource.clip = scaredStateAudio;
+            audioSource.loop = true;
+            audioSource.Play();
+        }
+    }
+
+    public void TransitionToRecoveringState()
+    {
+        currentState = GhostState.Recovering;
+        if (animator != null)
+        {
+            animator.SetTrigger("isRecovering");
+            animator.SetBool("inState", true);
+        }
+    }
+
+    public void TransitionToWalkingState()
+    {
+        currentState = GhostState.Walking;
+        if (animator != null)
+        {
+            animator.ResetTrigger("isScared");
+            animator.ResetTrigger("isRecovering");
+            animator.SetBool("inState", false);
+        }
+        if (audioSource != null && normalStateAudio != null)
+        {
+            audioSource.clip = normalStateAudio;
+            audioSource.loop = true;
+            audioSource.Play();
+        }
+    }
+
+    public void TransitionToDeadState()
+    {
+        currentState = GhostState.Dead;
+        if (animator != null)
+        {
+            animator.SetTrigger("isDead");
+        }
+        if (audioSource != null && deadStateAudio != null)
+        {
+            audioSource.clip = deadStateAudio;
+            audioSource.loop = false; // Play once
+            audioSource.Play();
+        }
+    }
+
+    private void HandleScaredMovement()
+    {
+        // Use the behavior of Ghost 1 for Scared or Recovering states
+        MoveRandomlyAwayFromPacStudent();
+    }
+
+    private void HandleDeadMovement()
+    {
+        // Move directly toward the spawn area, ignoring walls and PacStudent
+        Vector2 spawnPosition = new Vector2(-4, 0); // Adjust to your spawn area center
+        transform.position = Vector2.MoveTowards(transform.position, spawnPosition, moveSpeed * Time.deltaTime);
+
+        if (Vector2.Distance(transform.position, spawnPosition) < 0.1f)
+        {
+            currentState = GhostState.Walking;
+            TransitionToWalkingState();
+        }
+    }
+
+
+    public void StopMovement()
+    {
+        isLerping = false;
+        lerpTime = 0f;
+    }
+
 
     private void HandleWalkingMovement()
     {
@@ -76,49 +199,6 @@ public class GhostController : MonoBehaviour
         else if (gameObject.name.Contains("Ghost4"))
         {
             MoveClockwise();
-        }
-    }
-    public bool IsScared { get; private set; }
-
-    public void TransitionToScaredState()
-    {
-        IsScared = true;
-        // Trigger "Scared" animation and state logic
-    }
-
-    public void TransitionToRecoveringState()
-    {
-        IsScared = false;
-        // Trigger "Recovering" animation and state logic
-    }
-
-    public void TransitionToWalkingState()
-    {
-        IsScared = false;
-        // Trigger "Walking" animation and state logic
-    }
-
-    public void TransitionToDeadState()
-    {
-        // Trigger "Dead" animation and state logic
-    }
-    private void HandleScaredMovement()
-    {
-        // Use the behavior of Ghost 1 for Scared or Recovering states
-        MoveRandomlyAwayFromPacStudent();
-    }
-
-    private void HandleDeadMovement()
-    {
-        // Move directly toward the spawn area, ignoring walls and PacStudent
-        Vector2 spawnPosition = new Vector2(-4, 0); // Adjust to your spawn area center
-        transform.position = Vector2.MoveTowards(transform.position, spawnPosition, moveSpeed * Time.deltaTime);
-
-        if (Vector2.Distance(transform.position, spawnPosition) < 0.1f)
-        {
-            // Reset to a non-dead state when at the spawn area
-            currentState = GhostState.Walking;
-            // Adjust background music if needed
         }
     }
 

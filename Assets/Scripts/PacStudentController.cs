@@ -50,6 +50,9 @@ public class PacStudentController : MonoBehaviour
         ghostTimerUI.SetActive(false);
         ghosts = FindObjectsOfType<GhostController>();
         gameOverText.gameObject.SetActive(false);
+        int savedScore = PlayerPrefs.GetInt("HighScore",0);
+        highScoreText.text = "Highest: " + savedScore;
+        Debug.Log("Saved Highest Score"+ savedScore);
         HUDController hUDController = FindObjectOfType<HUDController>(); // Ensure HUDController is correctly found
         if (hUDController != null)
         {
@@ -417,9 +420,10 @@ public class PacStudentController : MonoBehaviour
                 // PacStudent loses a life, play death effect, and respawn
                 lives--;
                 UpdateLivesUI();
+
+                StopMovement();
                 isLerping = false;
                 lerpTime = 0f;
-                StopMovement();
                 // Set the respawn flag to prevent further life loss during respawn
                 isRespawning = true;
 
@@ -490,13 +494,47 @@ public class PacStudentController : MonoBehaviour
         }
     }
 
-
     private void GameOver()
     {
+        // Stop the game timer and prevent further movement
         isGameRunning = false;
+
+        // Stop all player movement
+        isLerping = false;
+        lerpTime = 0f;
+
+        // Stop ghost movement
+        foreach (GhostController ghost in ghosts)
+        {
+            ghost.StopMovement();
+        }
+
+        // Display "Game Over" text
         gameOverText.gameObject.SetActive(true);
+
+        // Save high score if conditions are met
+        Debug.Log("Updating Highest Score-");
         SaveHighScore();
+
+        // Start coroutine to wait and then return to start scene
         StartCoroutine(ReturnToStartScene());
+    }
+
+    private void SaveHighScore()
+    {
+
+        int savedScore = PlayerPrefs.GetInt("HighScore", 0);
+        float savedTime = PlayerPrefs.GetFloat("HighScoreTime", float.MaxValue);
+        Debug.Log(savedScore);
+        // Save if the current score is higher or if the score is the same but the time is lower
+        if (score > savedScore || (score == savedScore && timer < savedTime))
+        {
+            PlayerPrefs.SetInt("HighScore", score);
+            PlayerPrefs.SetFloat("HighScoreTime", timer);
+            PlayerPrefs.Save(); // Ensure changes are saved
+            highScoreText.text = "Highest: " + score; // Update the high score text
+            Debug.Log("Highest Score updated " + score);
+        }
     }
 
     private IEnumerator ReturnToStartScene()
@@ -507,7 +545,10 @@ public class PacStudentController : MonoBehaviour
 
     private void UpdateScoreUI()
     {
+        // Save high score and time
+
         scoreText.text = ""+score;
+
     }
 
     private void UpdateLivesUI()
@@ -557,15 +598,5 @@ public class PacStudentController : MonoBehaviour
             animator.SetBool("IsMoving", true);
     }
 
-    private void SaveHighScore()
-    {
-        int savedScore = PlayerPrefs.GetInt("HighScore", 0);
-        float savedTime = PlayerPrefs.GetFloat("HighScoreTime", float.MaxValue);
 
-        if (score > savedScore || (score == savedScore && timer < savedTime))
-        {
-            PlayerPrefs.SetInt("HighScore", score);
-            PlayerPrefs.SetFloat("HighScoreTime", timer);
-        }
-    }
 }
