@@ -3,48 +3,46 @@ using UnityEngine;
 public class CherryMovement : MonoBehaviour
 {
     public float moveSpeed = 1f;  // Speed at which the cherry moves
-    private Vector2 targetPosition;  // The target position for lerping
-    public Vector2 spawnPosition;
-
-    public void SetTarget(Vector2 target)
+    private Vector2 startPosition;
+    private Vector2 centerPosition;
+    private Vector2 endPosition;
+    private float journeyLength;
+    private float progress = 0f;  
+    public void InitializeMovement(Vector2 spawnPosition, Vector2 center)
     {
-        targetPosition = target;  // Set the target position (center of the screen)
+        startPosition = spawnPosition;
+        centerPosition = center;
+        endPosition = GetOutOfScreenPosition(center);
+
+        // Calculate total journey length for interpolation
+        journeyLength = Vector2.Distance(startPosition, endPosition);
     }
 
     private void Update()
     {
-        // Move the cherry towards the target position using linear interpolation
-        transform.position = Vector2.Lerp(transform.position, targetPosition, moveSpeed * Time.deltaTime);
+        float distancePerFrame = moveSpeed * Time.deltaTime / journeyLength;
+        progress += distancePerFrame;
 
-        // If the cherry is close enough to the target, move it further past the screen
-        if (Vector2.Distance(transform.position, targetPosition) < 0.1f)
-        {
+        // Lerp from startPosition to endPosition based on progress
+        transform.position = Vector2.Lerp(startPosition, endPosition, progress);
 
-            targetPosition = GetOutOfScreenPosition(spawnPosition);
-        }
-
-        // Destroy the cherry if it moves out of the camera view
-        if (IsOutOfCameraView())
+        // Destroy the cherry if it has reached or exceeded the end position
+        if (progress >= 1f)
         {
             Destroy(gameObject);
         }
     }
 
-    private Vector2 GetOutOfScreenPosition(Vector2 spawnPosition)
+    private Vector2 GetOutOfScreenPosition(Vector2 centerPosition)
     {
         Camera cam = Camera.main;
         float camHeight = 2f * cam.orthographicSize;
         float camWidth = camHeight * cam.aspect;
-        Vector2 screenCenter = new Vector2(-4,0);
-        Vector2 direction = (screenCenter - spawnPosition).normalized;
-        Vector2 outOfScreenPosition = spawnPosition + direction * Mathf.Max(camWidth, camHeight) * 2;
+
+        // Calculate the opposite side position for exit
+        Vector2 direction = (centerPosition - startPosition).normalized;
+        Vector2 outOfScreenPosition = centerPosition + direction * Mathf.Max(camWidth, camHeight) * 1.5f; // Extend beyond screen bounds
+
         return outOfScreenPosition;
-    }
-
-
-    private bool IsOutOfCameraView()
-    {
-        Vector3 screenPoint = Camera.main.WorldToViewportPoint(transform.position);
-        return screenPoint.x < 0 || screenPoint.x > 1 || screenPoint.y < 0 || screenPoint.y > 1;
     }
 }

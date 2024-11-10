@@ -5,6 +5,12 @@ TagManager:
   serializedVersion: 2
   tags:
   - OldLevel
+  - Ghost
+  - Wall
+  - Pellet
+  - PowerPellet
+  - Cherry
+  - Teleporter
   layers:
   - Default
   - TransparentFX

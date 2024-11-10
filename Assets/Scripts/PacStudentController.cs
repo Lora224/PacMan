@@ -10,14 +10,7 @@ public class PacStudentController : MonoBehaviour
     [SerializeField] private AudioClip normalMovementSound;
     [SerializeField] private AudioClip pelletMovementSound;
   //  public bool IsMoving;
-    private AudioSource audioSource;
-    private Vector2 targetPosition;
-    private Vector2 startPosition;
-    private float lerpTime = 0f;
-    private bool isLerping = false;
-    private string lastInput = "";
-    private string currentInput = "";
-    private Animator animator;
+
     public int score = 0;
     public int lives = 3;
     public Text scoreText;
@@ -26,15 +19,26 @@ public class PacStudentController : MonoBehaviour
     public Text highScoreText;
     public Text timerText;
     public GameObject collisionEffectPrefab;
-    public AudioClip powerPillSound;
+    public AudioClip powerPelletSound;
     public AudioClip wallCollisionSound;
+    public AudioClip deathAudioClip;
 
     public GameObject ghostTimerUI;
     public float scaredDuration = 10f;
 
+    private bool countdownActive = true; // Added boolean to track countdown state
     private float timer = 0f;
     private bool isGameRunning = false;
     private GhostController[] ghosts;
+    private AudioSource audioSource;
+    private Vector2 targetPosition;
+    private Vector2 startPosition;
+    private float lerpTime = 0f;
+    private bool isLerping = false;
+    private string lastInput = "";
+    private string currentInput = "";
+    private Animator animator;
+
     private void Start()
     {
         audioSource = GetComponent<AudioSource>();
@@ -46,12 +50,24 @@ public class PacStudentController : MonoBehaviour
         ghostTimerUI.SetActive(false);
         ghosts = FindObjectsOfType<GhostController>();
         gameOverText.gameObject.SetActive(false);
-        HUDController hUDController = new HUDController();
-        StartCoroutine(hUDController.StartRoundCountdown());
+        HUDController hUDController = FindObjectOfType<HUDController>(); // Ensure HUDController is correctly found
+        if (hUDController != null)
+        {
+            StartCoroutine(hUDController.StartRoundCountdown(() =>
+            {
+                countdownActive = false; // Disable countdownActive after countdown ends
+                StartCoroutine(WaitForPlayerInput()); // Wait for player input to start the game
+            }));
+        }
+        else
+        {
+            Debug.LogError("HUDController not found!");
+        }
     }
 
     private void Update()
     {
+        if (countdownActive) return;
         if (isGameRunning)
         {
             timer += Time.deltaTime;
@@ -121,9 +137,9 @@ public class PacStudentController : MonoBehaviour
         Vector2 nextPos = GetNextGridPosition(direction);
         int gridX = Mathf.RoundToInt((nextPos.x+10.5f)/0.5f); // Offset based on origin in LevelGenerator
         int gridY = Mathf.RoundToInt((-nextPos.y+7f)/0.5f);   // Offset based on origin in LevelGenerator
-        Debug.Log(nextPos);
-        Debug.Log(gridX);
-        Debug.Log(gridY);
+       // Debug.Log(nextPos);
+        //Debug.Log(gridX);
+       // Debug.Log(gridY);
         // Check if position is within grid bounds
         if (gridX < 0 || gridX >= LevelGenerator.levelMap.GetLength(1) ||
             gridY < 0 || gridY >= LevelGenerator.levelMap.GetLength(0))
@@ -131,7 +147,7 @@ public class PacStudentController : MonoBehaviour
 
         // Check if next position is walkable (not a wall)
         int tileType = LevelGenerator.levelMap[gridY, gridX];
-        Debug.Log(tileType);
+        //Debug.Log(tileType);
         return tileType != 1 && tileType != 2 && tileType != 3 && tileType != 4 && tileType != 7;
     }
 
@@ -195,11 +211,37 @@ public class PacStudentController : MonoBehaviour
     {
         if (other.CompareTag("Wall"))
         {
-            HandleWallCollision(other);
+            Vector2 movementDirection = (targetPosition - startPosition).normalized;
+
+            // Get the position of the wall
+            Vector2 wallPosition = other.transform.position;
+            Vector2 currentPosition = transform.position;
+
+            // Check if the wall is in the direction PacStudent is moving
+            Vector2 directionToWall = (wallPosition - currentPosition).normalized;
+            // Allow a small threshold for detection
+            float detectionThreshold = 0.02f;
+
+            // Only trigger collision if the wall is directly in front of PacStudent
+            if (Vector2.Dot(movementDirection, directionToWall) > 1 - detectionThreshold)
+            {
+
+                HandleWallCollision(other);
+            }
         }
         else if (other.CompareTag("Teleporter"))
         {
-            HandleTeleportation(other);
+            if (other.CompareTag("Teleporter"))
+            {
+                Debug.Log("Teleportation triggered by: " + other.name);
+                HandleTeleportation(other);
+            }
+            else
+            {
+                Debug.Log("Collision detected with non-teleporter object: " + other.name);
+            }
+          //  HandleTeleportation(other);
+
         }
         else if (other.CompareTag("Pellet"))
         {
@@ -209,30 +251,96 @@ public class PacStudentController : MonoBehaviour
         {
             HandleCherryCollision(other);
         }
-        else if (other.CompareTag("PowerPill"))
+        else if (other.CompareTag("PowerPellet"))
         {
-            HandlePowerPillCollision(other);
+            HandlePowerPelletCollision(other);
         }
         else if (other.CompareTag("Ghost"))
         {
             HandleGhostCollision(other);
         }
     }
+    private IEnumerator LerpBackToStartPosition(Vector2 startPos, Vector2 endPos, float duration)
+    {
+        float elapsedTime = 0f;
+        while (elapsedTime < duration)
+        {
+            transform.position = Vector2.Lerp(endPos, startPos, elapsedTime / duration);
+            elapsedTime += Time.deltaTime;
+            yield return null; // Wait for the next frame
+        }
+        // Ensure final position is set to startPos at the end of the lerp
+        transform.position = startPos;
 
+        // Stop the coroutine after the lerp has completed
+        StopCoroutine(LerpBackToStartPosition(startPos, endPos, duration));
+        isLerping = false; // Reset lerping state
+        lerpTime = 0f; // Reset lerp time if necessary
+    }
+
+
+    private float wallCollisionCooldown = 3f; // Time in seconds before allowing another collision with the same wall
+    private float lastCollisionTime = -1f;    // Time of the last collision
+    private Collider2D lastWall = null;       // Reference to the last wall collided with
 
     private void HandleWallCollision(Collider2D wall)
     {
-        // Prevent movement and play collision effect and sound
-        Instantiate(collisionEffectPrefab, transform.position, Quaternion.identity);
-        audioSource.PlayOneShot(wallCollisionSound);
-        // Implement logic to move PacStudent back to previous position
+        // Check if the wall is the same as the last wall collided with and if the cooldown period has passed
+        if (wall == lastWall && Time.time - lastCollisionTime < wallCollisionCooldown)
+        {
+            // Ignore this collision as it is within the cooldown period
+            return;
+        }
+
+        // Update the last collision time and wall reference
+        lastCollisionTime = Time.time;
+        lastWall = wall;
+        // Debug.Log(Time.time - lastCollisionTime);
+        // Calculate the direction PacStudent is moving in
+        Debug.Log(wall);
+
+        // Only trigger collision if the wall is directly in front of PacStudent
+
+        Vector2 currentPosition = transform.position;
+        Debug.Log("Collides with wall in front");
+
+            // Create a small particle effect at the point of collision and destroy it after one frame
+            if (collisionEffectPrefab != null)
+            {
+                GameObject effect = Instantiate(collisionEffectPrefab, transform.position, Quaternion.identity);
+                Destroy(effect, 0.5f); // Destroy after a short delay (0.1 seconds)
+            }
+
+            // Play the wall collision sound effect (only once per collision)
+            if (audioSource && wallCollisionSound)
+            {
+                audioSource.PlayOneShot(wallCollisionSound);
+            }
+
+            // Stop current movement and start lerp back to the previous valid position
+            isLerping = false; // Stop current forward lerping
+            lerpTime = 0f; // Reset lerp time
+
+            StartCoroutine(LerpBackToStartPosition(startPosition, currentPosition, 0.2f)); 
+        
     }
+
+
 
     private void HandleTeleportation(Collider2D teleporter)
     {
+
+        isLerping = false;  // Stop any current movement
+        lerpTime = 0f;      // Reset lerp time if necessary
+
         // Move PacStudent to the other side of the level
         Vector2 newPosition = GetOppositeTeleporterPosition(teleporter.transform.position);
         transform.position = newPosition;
+
+        //keep moving after teleported
+        Debug.Log("Teleporting from: " + transform.position + " to: " + newPosition);
+
+        Debug.Log("Teleported to: " + newPosition);
     }
 
     private void HandlePelletCollision(Collider2D pellet)
@@ -249,10 +357,10 @@ public class PacStudentController : MonoBehaviour
         UpdateScoreUI();
     }
 
-    private void HandlePowerPillCollision(Collider2D powerPill)
+    private void HandlePowerPelletCollision(Collider2D powerPill)
     {
         Destroy(powerPill.gameObject);
-        audioSource.PlayOneShot(powerPillSound);
+        audioSource.PlayOneShot(powerPelletSound);
         StartCoroutine(StartGhostScaredState());
         score += 50;
         UpdateScoreUI();
@@ -284,38 +392,83 @@ public class PacStudentController : MonoBehaviour
         ChangeGhostStates("Walking");
         // Return to normal background music
     }
+    private bool isRespawning = false; // Flag to indicate if PacStudent is in the process of respawning
 
-    private void HandleGhostCollision(Collider2D ghost)
+    private void HandleGhostCollision(Collider2D ghostCollider)
     {
-        if (ghost.GetComponent<GhostController>().IsScared)
+        GhostController ghost = ghostCollider.GetComponent<GhostController>();
+
+        if (ghost != null && !isRespawning)
         {
-            // Ghost dies, transition to Dead state, play audio, and add points
-            score += 300;
-            UpdateScoreUI();
-            ghost.GetComponent<GhostController>().TransitionToDeadState();
-            StartCoroutine(RespawnGhost(ghost.gameObject, 5f));
-        }
-        else
-        {
-            // PacStudent loses a life, play death effect, and respawn
-            lives--;
-            UpdateLivesUI();
-            Instantiate(collisionEffectPrefab, transform.position, Quaternion.identity);
-            if (lives <= 0)
+            if (ghost.currentState == GhostController.GhostState.Scared)
             {
-                GameOver();
+                // Ghost dies, transition to Dead state, play audio, and add points
+                score += 300;
+                UpdateScoreUI();
+                ghost.TransitionToDeadState();
+                StartCoroutine(RespawnGhost(ghost.gameObject, 5f));
             }
-            else
+            else if (ghost.currentState == GhostController.GhostState.Dead)
             {
-                RespawnPacStudent();
+                // Do nothing; PacStudent should pass through dead ghosts
+            }
+            else if (ghost.currentState == GhostController.GhostState.Walking)
+            {
+                // PacStudent loses a life, play death effect, and respawn
+                lives--;
+                UpdateLivesUI();
+                isLerping = false;
+                lerpTime = 0f;
+                StopMovement();
+                // Set the respawn flag to prevent further life loss during respawn
+                isRespawning = true;
+
+                // Trigger death animation
+                if (animator != null)
+                {
+                    animator.SetTrigger("Die"); // Ensure "Die" is a trigger in the Animator
+                }
+
+                // Play death audio
+                if (audioSource != null && deathAudioClip != null)
+                {
+                    audioSource.PlayOneShot(deathAudioClip);
+                }
+
+                if (lives <= 0)
+                {
+                    GameOver();
+                }
+                else
+                {
+                    Debug.Log("Respawn Student");
+                    StartCoroutine(HandleRespawnWithDelay(2f)); // Delay to allow animation and audio to play
+                }
             }
         }
     }
+
+    private IEnumerator HandleRespawnWithDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        RespawnPacStudent();
+    }
+
+    private void RespawnPacStudent()
+    {
+        transform.position = new Vector2(-10, 6.5f); // Top-left corner starting position
+        isGameRunning = false;
+        isRespawning = false; // Reset respawn flag to allow future life loss after respawn
+        StartCoroutine(WaitForPlayerInput()); // Wait for player input to resume game
+    }
+
+
 
     private IEnumerator RespawnGhost(GameObject ghost, float delay)
     {
         yield return new WaitForSeconds(delay);
         ghost.GetComponent<GhostController>().TransitionToWalkingState();
+
     }
 
     private void ChangeGhostStates(string state)
@@ -337,6 +490,7 @@ public class PacStudentController : MonoBehaviour
         }
     }
 
+
     private void GameOver()
     {
         isGameRunning = false;
@@ -353,12 +507,12 @@ public class PacStudentController : MonoBehaviour
 
     private void UpdateScoreUI()
     {
-        scoreText.text = "Score: " + score;
+        scoreText.text = ""+score;
     }
 
     private void UpdateLivesUI()
     {
-        livesText.text = "Lives: " + lives;
+        livesText.text = "x " + lives;
     }
 
     private void UpdateTimerUI()
@@ -367,25 +521,40 @@ public class PacStudentController : MonoBehaviour
         int seconds = Mathf.FloorToInt(timer % 60f);
         int milliseconds = Mathf.FloorToInt((timer * 1000f) % 1000f);
         timerText.text = string.Format("{0:00}:{1:00}:{2:00}", minutes, seconds, milliseconds);
+       // Debug.Log(timerText.text);
     }
 
     private Vector2 GetOppositeTeleporterPosition(Vector2 currentPos)
     {
-        // Implement logic to return the position of the opposite teleporter
-        return new Vector2(-currentPos.x, currentPos.y);
+
+        float threshold = 0.01f;
+        //Debug.Log(currentPos);
+        // Check if the current position is near the left teleporter
+        if (Mathf.Abs(currentPos.x - (-11f)) < threshold && Mathf.Abs(currentPos.y)== 0) 
+        {
+            // Move to the right teleporter
+            return new Vector2(1f, currentPos.y);
+        }
+        // Check if the current position is near the right teleporter
+        else if (Mathf.Abs(currentPos.x - 2.5f) < threshold && Mathf.Abs(currentPos.y) ==0) 
+        {
+            // Move to the left teleporter
+            return new Vector2(-9f, currentPos.y); 
+        }
+
+        // If not a teleporter, return the current position
+        return currentPos;
     }
 
-    private void RespawnPacStudent()
-    {
-        transform.position = new Vector2(-9, 9);  // Top-left corner starting position
-        isGameRunning = false;
-        StartCoroutine(WaitForPlayerInput());
-    }
+
+
 
     private IEnumerator WaitForPlayerInput()
     {
         yield return new WaitUntil(() => Input.anyKeyDown);
         isGameRunning = true;
+        if (animator)
+            animator.SetBool("IsMoving", true);
     }
 
     private void SaveHighScore()

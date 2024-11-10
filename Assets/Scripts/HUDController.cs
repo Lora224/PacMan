@@ -7,16 +7,20 @@ public class HUDController : MonoBehaviour
 {
     public Text countdownText;
 
-    public IEnumerator StartRoundCountdown()
+    public IEnumerator StartRoundCountdown(System.Action onCountdownComplete)
     {
         for (int i = 3; i > 0; i--)
         {
             countdownText.text = i.ToString();
             yield return new WaitForSeconds(1f);
         }
+
+
         countdownText.text = "GO!";
         yield return new WaitForSeconds(1f);
         countdownText.gameObject.SetActive(false);
         // Start game logic
+        // Notify PacStudentController that the countdown has finished
+        onCountdownComplete?.Invoke();
     }
 }

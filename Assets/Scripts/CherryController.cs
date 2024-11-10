@@ -1,29 +1,39 @@
 using UnityEngine;
+using System.Collections;
 
 public class CherryController : MonoBehaviour
 {
-    public GameObject cherryPrefab;  
+    public GameObject cherryPrefab;
     private float spawnInterval = 10f;  // Time interval between cherry spawns
-    private Vector2 spawnPosition;
+    //private bool isInvoking = false;
     private void Start()
     {
-
-        InvokeRepeating("SpawnCherry", spawnInterval, spawnInterval);
+        StartCoroutine(SpawnCherryCoroutine());
     }
 
     private void SpawnCherry()
     {
+        // Debug log to verify when the cherry spawns
+        Debug.Log("Spawning cherry at: " + Time.time);
         // Get a random spawn position outside the camera view
-        spawnPosition = GetRandomOffScreenPosition();
+        Vector2 spawnPosition = GetRandomOffScreenPosition();
 
         // Instantiate the cherry at the random position
         GameObject cherry = Instantiate(cherryPrefab, spawnPosition, Quaternion.identity);
 
         // Add CherryMovement component to handle movement
         CherryMovement movement = cherry.AddComponent<CherryMovement>();
-        movement.spawnPosition = spawnPosition;
-        Vector2 center = new Vector2(-4, 0);
-        movement.SetTarget(center);  // Set the target to the center of the level
+        Vector2 center = new Vector2(0, 0);  // Set the center of the level
+        movement.InitializeMovement(spawnPosition, center);
+    }
+
+    private IEnumerator SpawnCherryCoroutine()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(spawnInterval);
+            SpawnCherry();
+        }
     }
 
     private Vector2 GetRandomOffScreenPosition()

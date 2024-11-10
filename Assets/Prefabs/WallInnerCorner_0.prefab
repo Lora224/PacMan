@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: -5475011867664337641}
   m_Layer: 0
   m_Name: WallInnerCorner_0
-  m_TagString: OldLevel
+  m_TagString: Wall
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -132,7 +132,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.64, y: 0.64}
+  m_Size: {x: 0.5, y: 0.5}
   m_EdgeRadius: 0
 --- !u!50 &-5475011867664337641
 Rigidbody2D:
